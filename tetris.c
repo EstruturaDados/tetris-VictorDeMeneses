@@ -2,88 +2,85 @@
 #include <stdlib.h>
 #include <time.h>
 
-// Definição dos limites de tamanho das estruturas
 #define TAM_FILA 5
 #define TAM_PILHA 3
 
 // Estrutura que representa uma peça do Tetris
 typedef struct {
     char nome; // 'I', 'O', 'T', 'L'
-    int id;    // Identificador numérico único
+    int id;    // Identificador único
 } Peca;
 
-// --- VARIÁVEIS GLOBAIS DA FILA CIRCULAR ---
+// --- ESTRUTURAS GLOBAIS DE DADOS ---
 Peca fila[TAM_FILA];
 int frente = 0;
 int tras = 0;
 int totalFila = 0;
 
-// --- VARIÁVEIS GLOBAIS DA PILHA LINEAR ---
 Peca pilha[TAM_PILHA];
-int topo = -1; // Começa em -1 indicando pilha vazia
+int topo = -1; // -1 significa pilha vazia
 
-// --- VARIÁVEIS DE CONTROLE DO JOGO ---
-int proximoId = 0; // Garante o ID único e sequencial para cada peça criada
+// --- CONTROLE DE ID ---
+int proximoId = 0;
 
 // --- PROTÓTIPOS DAS FUNÇÕES ---
 Peca gerarPeca();
 void inicializarFila();
-void adicionarFila();
+void reporFila();
 void jogarPeca();
-void reservarPeca();
-void usarPecaReservada();
-void exibirEstadoAtual();
+void enviarParaPilha();
+void usarPecaPilha();
+void trocarPecaAtual();
+void trocaMultipla();
+void exibirEstado();
 
 int main() {
-    srand(time(NULL)); // Inicializa o gerador de números aleatórios
+    srand(time(NULL));
     int opcao = -1;
 
-    // Inicializa o jogo preenchendo a fila de peças futuras (começa com 5 peças)
+    // Inicializa a fila com as 5 primeiras peças futuras
     inicializarFila();
 
-    printf("=== MOTOR DO JOGO: TETRIS STACK (INTERMEDIARIO) ===\n\n");
+    printf("=== MOTOR DO JOGO: TETRIS STACK (AVANCADO) ===\n");
 
-    // Loop principal do menu interativo
     while (opcao != 0) {
-        exibirEstadoAtual();
+        exibirEstado();
 
-        printf("\nOpcoes de Acao:\n");
-        printf("1 - Jogar peca\n");
-        printf("2 - Reservar peca\n");
-        printf("3 - Usar peca reservada\n");
+        printf("\nOpcoes disponiveis:\n");
+        printf("1 - Jogar peca da frente da fila\n");
+        printf("2 - Enviar peca da fila para a pilha de reserva\n");
+        printf("3 - Usar peca da pilha de reserva\n");
+        printf("4 - Trocar peca da frente da fila com o topo da pilha\n");
+        printf("5 - Trocar os 3 primeiros da fila com as 3 pecas da pilha\n");
         printf("0 - Sair\n");
-        printf("Opcao: ");
+        printf("Opcao escolhida: ");
         scanf("%d", &opcao);
 
-        if (opcao == 1) {
-            jogarPeca();
-        } else if (opcao == 2) {
-            reservarPeca();
-        } else if (opcao == 3) {
-            usarPecaReservada();
-        } else if (opcao != 0) {
-            printf("\n[AVISO] Opcao invalida! Digite um numero do menu.\n");
+        switch (opcao) {
+            case 1: jogarPeca(); break;
+            case 2: enviarParaPilha(); break;
+            case 3: usarPecaPilha(); break;
+            case 4: trocarPecaAtual(); break;
+            case 5: trocaMultipla(); break;
+            case 0: printf("\nEncerrando o Tetris Stack. Sistema finalizado!\n"); break;
+            default: printf("\n[ERRO] Opcao invalida!\n");
         }
-        printf("\n---------------------------------------------------\n");
+        printf("\n-------------------------------------------------------------\n");
     }
 
-    printf("\nSistema Tetris Stack encerrado com sucesso.\n");
     return 0;
 }
 
-// Cria uma peça automaticamente com formato aleatório e ID sequencial único
+// Gera automaticamente peças com formato aleatório e ID único sequencial
 Peca gerarPeca() {
     char formatos[] = {'I', 'O', 'T', 'L'};
     Peca novaPeca;
-    
     novaPeca.nome = formatos[rand() % 4];
-    novaPeca.id = proximoId;
-    proximoId++; // Incrementa globalmente para a próxima criação
-    
+    novaPeca.id = proximoId++;
     return novaPeca;
 }
 
-// Preenche a fila circular pela primeira vez até sua capacidade total
+// Preenche a fila pela primeira vez
 void inicializarFila() {
     for (int i = 0; i < TAM_FILA; i++) {
         fila[tras] = gerarPeca();
@@ -92,90 +89,127 @@ void inicializarFila() {
     }
 }
 
-// Função auxiliar para reinserir uma peça no fim da fila sempre que uma sai
-void adicionarFila() {
+// Função auxiliar para garantir que a fila se mantenha cheia
+void reporFila() {
     if (totalFila < TAM_FILA) {
         fila[tras] = gerarPeca();
-        tras = (tras + 1) % TAM_FILA; // Movimentação circular do índice de trás
+        tras = (tras + 1) % TAM_FILA;
         totalFila++;
     }
 }
 
-// Ação 1: Remove a peça da frente da fila e simula seu posicionamento no jogo
+// Opção 1: Dequeue (Remove a peça da frente)
 void jogarPeca() {
     if (totalFila == 0) {
-        printf("\n[ERRO] Nao ha pecas na fila para jogar.\n");
+        printf("\n[AVISO] Fila vazia!\n");
         return;
     }
-
-    // Pega a peça da frente
-    Peca pecaSaindo = fila[frente];
-    
-    // Atualiza o índice da frente de forma circular
+    printf("\nAcao: Voce jogou a peca [%c %d]!\n", fila[frente].nome, fila[frente].id);
     frente = (frente + 1) % TAM_FILA;
     totalFila--;
-
-    printf("\n-> Voce jogou a peca: [%c %d]!\n", pecaSaindo.nome, pecaSaindo.id);
-
-    // Regra do jogo: Uma nova peça entra automaticamente no fim da fila
-    adicionarFila();
+    reporFila();
 }
 
-// Ação 2: Tira a peça da frente da fila e a coloca no topo da pilha de reserva
-void reservarPeca() {
-    // 1. Verifica se a pilha está cheia antes de mover
+// Opção 2: Envia a peça da frente da fila para o topo da pilha (Push)
+void enviarParaPilha() {
     if (topo >= TAM_PILHA - 1) {
-        printf("\n[AVISO] Pilha de reserva cheia! Use uma peca reservada antes.\n");
+        printf("\n[AVISO] A pilha de reserva esta cheia!\n");
+        return;
+    }
+    if (totalFila == 0) {
+        printf("\n[AVISO] Nao ha pecas na fila para reservar!\n");
         return;
     }
 
-    // 2. Remove a peça da frente da fila
-    Peca pecaParaReserva = fila[frente];
+    Peca pecaMudar = fila[frente];
     frente = (frente + 1) % TAM_FILA;
     totalFila--;
 
-    // 3. Insere a peça no topo da pilha (Push)
     topo++;
-    pilha[topo] = pecaParaReserva;
+    pilha[topo] = pecaMudar;
 
-    printf("\n-> Peca [%c %d] movida para a reserva.\n", pecaParaReserva.nome, pecaParaReserva.id);
-
-    // 4. Repõe imediatamente a fila com uma nova peça gerada automaticamente
-    adicionarFila();
+    printf("\nAcao: Peca [%c %d] enviada para a pilha de reserva.\n", pecaMudar.nome, pecaMudar.id);
+    reporFila();
 }
 
-// Ação 3: Remove e utiliza a peça que está no topo da pilha (LIFO)
-void usarPecaReservada() {
-    // Verifica se há alguma peça na reserva
+// Opção 3: Usa a peça do topo da pilha (Pop)
+void usarPecaPilha() {
     if (topo == -1) {
-        printf("\n[AVISO] Nao ha pecas na pilha de reserva!\n");
+        printf("\n[AVISO] Pilha de reserva vazia!\n");
+        return;
+    }
+    printf("\nAcao: Voce usou a peca reservada [%c %d]!\n", pilha[topo].nome, pilha[topo].id);
+    topo--;
+}
+
+// Opção 4: Substitui a peça da frente da fila com o topo da pilha
+void trocarPecaAtual() {
+    if (totalFila == 0 || topo == -1) {
+        printf("\n[AVISO] Operacao impossivel: A fila ou a pilha estao vazias!\n");
         return;
     }
 
-    // Pega a peça do topo da pilha (Pop)
-    Peca pecaReservadaUsada = pilha[topo];
-    topo--; // Reduz o topo indicando a remoção
+    // Troca simples usando uma variável temporária
+    Peca temp = fila[frente];
+    fila[frente] = pilha[topo];
+    pilha[topo] = temp;
 
-    printf("\n-> Voce usou a peca reservada: [%c %d]!\n", pecaReservadaUsada.nome, pecaReservadaUsada.id);
-    // Atenção: Peças retiradas da reserva não geram novas peças na fila, 
-    // pois a fila já é reposta no momento em que ela foi guardada.
+    printf("\nAcao: Troca simples realizada entre a frente da fila e o topo da pilha.\n");
 }
 
-// Exibe o estado atual formatado da fila e da pilha
-void exibirEstadoAtual() {
+// Opção 5: Alterna os 3 primeiros elementos da Fila com os 3 elementos da Pilha
+void trocaMultipla() {
+    // Validação estrita: Ambas as estruturas precisam ter pelo menos 3 elementos
+    if (totalFila < 3 || topo < 2) {
+        printf("\n[AVISO] Operacao impossivel: Sao necessarias pelo menos 3 pecas na fila E na pilha!\n");
+        return;
+    }
+
+    // Como a fila é circular, precisamos mapear os índices corretos sequencialmente
+    int idxFila0 = frente;
+    int idxFila1 = (frente + 1) % TAM_FILA;
+    int idxFila2 = (frente + 2) % TAM_FILA;
+
+    // Mapeamento da pilha (Lembrando que o topo é o primeiro elemento visualizado)
+    int idxPilhaTopo = topo;       // 1º elemento
+    int idxPilhaMeio = topo - 1;   // 2º elemento
+    int idxPilhaBase = topo - 2;   // 3º elemento
+
+    Peca temp;
+
+    // 1ª Troca: Frente da fila com o Topo da pilha
+    temp = fila[idxFila0];
+    fila[idxFila0] = pilha[idxPilhaTopo];
+    pilha[idxPilhaTopo] = temp;
+
+    // 2ª Troca: Segundo da fila com o Meio da pilha
+    temp = fila[idxFila1];
+    fila[idxFila1] = pilha[idxPilhaMeio];
+    pilha[idxPilhaMeio] = temp;
+
+    // 3ª Troca: Terceiro da fila com a Base (terceiro) da pilha
+    temp = fila[idxFila2];
+    fila[idxFila2] = pilha[idxPilhaBase];
+    pilha[idxPilhaBase] = temp;
+
+    printf("\nAcao: Troca em bloco realizada entre os 3 primeiros da fila e os 3 da pilha.\n");
+}
+
+// Exibe o estado gráfico e textual do jogo no terminal
+void exibirEstado() {
     printf("\nEstado atual:\n");
 
-    // --- Renderização da Fila ---
+    // Print da Fila Circular
     printf("Fila de pecas: ");
-    int indiceFila = frente;
+    int idx = frente;
     for (int i = 0; i < totalFila; i++) {
-        printf("[%c %d] ", fila[indiceFila].nome, fila[indiceFila].id);
-        indiceFila = (indiceFila + 1) % TAM_FILA;
+        printf("[%c %d] ", fila[idx].nome, fila[idx].id);
+        idx = (idx + 1) % TAM_FILA;
     }
     printf("\n");
 
-    // --- Renderização da Pilha (Do Topo para a Base) ---
-    printf("Pilha de reserva (Topo -> Base): ");
+    // Print da Pilha Linear (Do Topo para a Base)
+    printf("Pilha de reserva (Topo -> base): ");
     if (topo == -1) {
         printf("(Vazia)");
     } else {
