@@ -2,111 +2,186 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define TAMANHO 5
+// Definição dos limites de tamanho das estruturas
+#define TAM_FILA 5
+#define TAM_PILHA 3
 
-// Estrutura simples para a peça
+// Estrutura que representa uma peça do Tetris
 typedef struct {
-    char nome;
-    int id;
+    char nome; // 'I', 'O', 'T', 'L'
+    int id;    // Identificador numérico único
 } Peca;
 
-// Variáveis globais para facilitar o acesso direto nas funções
-Peca fila[TAMANHO];
+// --- VARIÁVEIS GLOBAIS DA FILA CIRCULAR ---
+Peca fila[TAM_FILA];
 int frente = 0;
 int tras = 0;
-int totalElementos = 0;
-int proximoId = 0;
+int totalFila = 0;
 
-// Função para gerar uma peça automática
+// --- VARIÁVEIS GLOBAIS DA PILHA LINEAR ---
+Peca pilha[TAM_PILHA];
+int topo = -1; // Começa em -1 indicando pilha vazia
+
+// --- VARIÁVEIS DE CONTROLE DO JOGO ---
+int proximoId = 0; // Garante o ID único e sequencial para cada peça criada
+
+// --- PROTÓTIPOS DAS FUNÇÕES ---
+Peca gerarPeca();
+void inicializarFila();
+void adicionarFila();
+void jogarPeca();
+void reservarPeca();
+void usarPecaReservada();
+void exibirEstadoAtual();
+
+int main() {
+    srand(time(NULL)); // Inicializa o gerador de números aleatórios
+    int opcao = -1;
+
+    // Inicializa o jogo preenchendo a fila de peças futuras (começa com 5 peças)
+    inicializarFila();
+
+    printf("=== MOTOR DO JOGO: TETRIS STACK (INTERMEDIARIO) ===\n\n");
+
+    // Loop principal do menu interativo
+    while (opcao != 0) {
+        exibirEstadoAtual();
+
+        printf("\nOpcoes de Acao:\n");
+        printf("1 - Jogar peca\n");
+        printf("2 - Reservar peca\n");
+        printf("3 - Usar peca reservada\n");
+        printf("0 - Sair\n");
+        printf("Opcao: ");
+        scanf("%d", &opcao);
+
+        if (opcao == 1) {
+            jogarPeca();
+        } else if (opcao == 2) {
+            reservarPeca();
+        } else if (opcao == 3) {
+            usarPecaReservada();
+        } else if (opcao != 0) {
+            printf("\n[AVISO] Opcao invalida! Digite um numero do menu.\n");
+        }
+        printf("\n---------------------------------------------------\n");
+    }
+
+    printf("\nSistema Tetris Stack encerrado com sucesso.\n");
+    return 0;
+}
+
+// Cria uma peça automaticamente com formato aleatório e ID sequencial único
 Peca gerarPeca() {
     char formatos[] = {'I', 'O', 'T', 'L'};
     Peca novaPeca;
     
-    novaPeca.nome = formatos[rand() % 4]; // Escolhe uma letra aleatória
-    novaPeca.id = proximoId;              // Define o ID atual
-    proximoId++;                          // Incrementa para o próximo ID
+    novaPeca.nome = formatos[rand() % 4];
+    novaPeca.id = proximoId;
+    proximoId++; // Incrementa globalmente para a próxima criação
     
     return novaPeca;
 }
 
-// Função para exibir a fila na tela
-void exibirFila() {
-    printf("\nFila de pecas: ");
-    
-    if (totalElementos == 0) {
-        printf("(Vazia)\n");
+// Preenche a fila circular pela primeira vez até sua capacidade total
+void inicializarFila() {
+    for (int i = 0; i < TAM_FILA; i++) {
+        fila[tras] = gerarPeca();
+        tras = (tras + 1) % TAM_FILA;
+        totalFila++;
+    }
+}
+
+// Função auxiliar para reinserir uma peça no fim da fila sempre que uma sai
+void adicionarFila() {
+    if (totalFila < TAM_FILA) {
+        fila[tras] = gerarPeca();
+        tras = (tras + 1) % TAM_FILA; // Movimentação circular do índice de trás
+        totalFila++;
+    }
+}
+
+// Ação 1: Remove a peça da frente da fila e simula seu posicionamento no jogo
+void jogarPeca() {
+    if (totalFila == 0) {
+        printf("\n[ERRO] Nao ha pecas na fila para jogar.\n");
         return;
     }
 
-    int indice = frente;
-    for (int i = 0; i < totalElementos; i++) {
-        printf("[%c %d] ", fila[indice].nome, fila[indice].id);
-        indice = (indice + 1) % TAMANHO; // Anda para a próxima posição do círculo
+    // Pega a peça da frente
+    Peca pecaSaindo = fila[frente];
+    
+    // Atualiza o índice da frente de forma circular
+    frente = (frente + 1) % TAM_FILA;
+    totalFila--;
+
+    printf("\n-> Voce jogou a peca: [%c %d]!\n", pecaSaindo.nome, pecaSaindo.id);
+
+    // Regra do jogo: Uma nova peça entra automaticamente no fim da fila
+    adicionarFila();
+}
+
+// Ação 2: Tira a peça da frente da fila e a coloca no topo da pilha de reserva
+void reservarPeca() {
+    // 1. Verifica se a pilha está cheia antes de mover
+    if (topo >= TAM_PILHA - 1) {
+        printf("\n[AVISO] Pilha de reserva cheia! Use uma peca reservada antes.\n");
+        return;
+    }
+
+    // 2. Remove a peça da frente da fila
+    Peca pecaParaReserva = fila[frente];
+    frente = (frente + 1) % TAM_FILA;
+    totalFila--;
+
+    // 3. Insere a peça no topo da pilha (Push)
+    topo++;
+    pilha[topo] = pecaParaReserva;
+
+    printf("\n-> Peca [%c %d] movida para a reserva.\n", pecaParaReserva.nome, pecaParaReserva.id);
+
+    // 4. Repõe imediatamente a fila com uma nova peça gerada automaticamente
+    adicionarFila();
+}
+
+// Ação 3: Remove e utiliza a peça que está no topo da pilha (LIFO)
+void usarPecaReservada() {
+    // Verifica se há alguma peça na reserva
+    if (topo == -1) {
+        printf("\n[AVISO] Nao ha pecas na pilha de reserva!\n");
+        return;
+    }
+
+    // Pega a peça do topo da pilha (Pop)
+    Peca pecaReservadaUsada = pilha[topo];
+    topo--; // Reduz o topo indicando a remoção
+
+    printf("\n-> Voce usou a peca reservada: [%c %d]!\n", pecaReservadaUsada.nome, pecaReservadaUsada.id);
+    // Atenção: Peças retiradas da reserva não geram novas peças na fila, 
+    // pois a fila já é reposta no momento em que ela foi guardada.
+}
+
+// Exibe o estado atual formatado da fila e da pilha
+void exibirEstadoAtual() {
+    printf("\nEstado atual:\n");
+
+    // --- Renderização da Fila ---
+    printf("Fila de pecas: ");
+    int indiceFila = frente;
+    for (int i = 0; i < totalFila; i++) {
+        printf("[%c %d] ", fila[indiceFila].nome, fila[indiceFila].id);
+        indiceFila = (indiceFila + 1) % TAM_FILA;
     }
     printf("\n");
-}
 
-// Função para jogar a peça (Remover da frente)
-void dequeue() {
-    if (totalElementos == 0) {
-        printf("\n[Erro] A fila esta vazia! Nao ha pecas para jogar.\n");
-        return;
-    }
-
-    printf("\nVoce jogou a peca: [%c %d]!\n", fila[frente].nome, fila[frente].id);
-    
-    frente = (frente + 1) % TAMANHO; // Move a frente para o próximo elemento
-    totalElementos--;
-}
-
-// Função para adicionar uma nova peça (Inserir no final)
-void enqueue() {
-    if (totalElementos == TAMANHO) {
-        printf("\n[Erro] A fila esta cheia! Jogue uma peca antes.\n");
-        return;
-    }
-
-    Peca novaPeca = gerarPeca();
-    fila[tras] = novaPeca;
-    
-    printf("\nNova peca gerada e guardada: [%c %d]\n", novaPeca.nome, novaPeca.id);
-    
-    tras = (tras + 1) % TAMANHO; // Move o final para a próxima posição livre
-    totalElementos++;
-}
-
-int main() {
-    srand(time(NULL)); // Inicializa o gerador de aleatórios
-    int opcao = -1;
-
-    // Preenche a fila inicialmente com 5 peças
-    for (int i = 0; i < TAMANHO; i++) {
-        fila[tras] = gerarPeca();
-        tras = (tras + 1) % TAMANHO;
-        totalElementos++;
-    }
-
-    // Menu do Jogo
-    while (opcao != 0) {
-        exibirFila();
-        
-        printf("\nOpcoes de acao:\n");
-        printf("1 - Jogar peca (dequeue)\n");
-        printf("2 - Inserir nova peca (enqueue)\n");
-        printf("0 - Sair\n");
-        printf("Escolha: ");
-        scanf("%d", &opcao);
-
-        if (opcao == 1) {
-            dequeue();
-        } else if (opcao == 2) {
-            enqueue();
-        } else if (opcao != 0) {
-            printf("\nOpcao invalida!\n");
+    // --- Renderização da Pilha (Do Topo para a Base) ---
+    printf("Pilha de reserva (Topo -> Base): ");
+    if (topo == -1) {
+        printf("(Vazia)");
+    } else {
+        for (int i = topo; i >= 0; i--) {
+            printf("[%c %d] ", pilha[i].nome, pilha[i].id);
         }
-        printf("-------------------------------------------\n");
     }
-
-    printf("\nJogo encerrado.\n");
-    return 0;
+    printf("\n");
 }
